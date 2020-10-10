@@ -60,10 +60,12 @@ function setupCanvas(state) {
 
     canvas.addEventListener("mousedown", event => {
         state.dragging = true;
+        state.internal.start_undo_block();
     })
 
     canvas.addEventListener("mouseup", event => {
         state.dragging = false;
+        state.internal.close_undo_block();
     })
 
     canvas.addEventListener('mousemove', event => {

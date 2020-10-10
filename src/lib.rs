@@ -78,10 +78,17 @@ impl Image {
     }
 }
 
+enum Mode {
+    Normal,
+    StartBlock,
+    InBlock,
+}
+
 // T to work with anything
 struct UndoQueue<T: Clone> {
     queue: Vec<T>,
     index: usize,
+    mode: Mode,
 }
 
 impl<T: Clone> UndoQueue<T> {
@@ -89,6 +96,7 @@ impl<T: Clone> UndoQueue<T> {
         UndoQueue {
             queue: vec![entry],
             index: 0,
+            mode: Mode::Normal,
         }
     }
 
@@ -96,10 +104,32 @@ impl<T: Clone> UndoQueue<T> {
         self.queue[self.index].clone()
     }
 
+    pub fn start_undo_block(&mut self) {
+        self.mode = Mode::StartBlock;
+    }
+
+    pub fn close_undo_block(&mut self) {
+        self.mode = Mode::Normal;
+    }
+
     pub fn push(&mut self, entry: T) {
-        self.queue.truncate(self.index + 1);
-        self.queue.push(entry);
-        self.index += 1;
+        match self.mode {
+            Mode::Normal => {
+                self.queue.truncate(self.index + 1);
+                self.queue.push(entry);
+                self.index += 1;
+            }
+            Mode::StartBlock => {
+                // if about to start dragging
+                self.queue.truncate(self.index + 1);
+                self.queue.push(entry);
+                self.index += 1;
+                self.mode = Mode::InBlock;
+            }
+            Mode::InBlock => {
+                self.queue[self.index] = entry;
+            }
+        }
     }
 
     pub fn undo(&mut self) {
@@ -139,6 +169,14 @@ impl InternalState {
 
     pub fn redo(&mut self) {
         self.undo_queue.redo();
+    }
+
+    pub fn start_undo_block(&mut self) {
+        self.undo_queue.start_undo_block();
+    }
+
+    pub fn  close_undo_block(&mut self) {
+        self.undo_queue.close_undo_block();
     }
 
     pub fn brush(&mut self, x: usize, y: usize, color: Vec<u8>) {
