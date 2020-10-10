@@ -1,4 +1,6 @@
+use im::Vector;
 use wasm_bindgen::prelude::*;
+use std::iter::FromIterator;
 
 // When the `wee_alloc` feature is enabled, this uses `wee_alloc` as the global
 // allocator.
@@ -19,22 +21,18 @@ struct Rgb {
 pub struct Image {
     width: usize,
     height: usize,
-    cells: Vec<Rgb>,
+    cells: Vector<Rgb>,
 }
 
 #[wasm_bindgen]
 impl Image {
     #[wasm_bindgen(constructor)]
     pub fn new(width: usize, height: usize) -> Image {
-        let mut cells = Vec::new();
-        cells.resize(
-            width * height,
-            Rgb {
-                r: 200,
-                g: 200,
-                b: 255,
-            },
-        );
+        let cells = Vector::from_iter((0..width * height).map(|_| Rgb {
+            r: 200,
+            g: 200,
+            b: 255,
+        }));
         Image {
             width,
             height,
