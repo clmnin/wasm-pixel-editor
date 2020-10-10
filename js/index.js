@@ -20,7 +20,6 @@ function draw(state) {
         for (let y = 0; y < height; y++) {
             const index = (y * width + x) * 3
             const color = `rgb(${cells[index + 0]}, ${cells[index + 1]}, ${cells[index + 2]})`;
-            console.log(color)
             context.fillStyle = color;
             context.fillRect(x * cellSize, y * cellSize, cellSize, cellSize)
         }
@@ -60,6 +59,32 @@ function setupCanvas(state) {
         draw(state)
     });
 
+    canvas.addEventListener("mousedown", event => {
+        state.dragging = true;
+    })
+
+    canvas.addEventListener("mouseup", event => {
+        state.dragging = false;
+    })
+
+    canvas.addEventListener('mousemove', event => {
+        if (!state.dragging) return;
+
+        const rect = canvas.getBoundingClientRect();
+
+        // clientX, Y is the mouse position
+        let x = event.clientX - rect.left;
+        let y = event.clientY - rect.top;
+
+        x = Math.floor(x / cellSize);
+        y = Math.floor(y / cellSize);
+
+        const image = state.image;
+        image.brush(x, y, state.currentColor);
+
+        draw(state)
+    });
+
     document.getElementById("red").addEventListener("click", (event) => {
         state.currentColor = [255, 200, 200]
     })
@@ -78,7 +103,8 @@ async function main() {
 
     const state = {
         image,
-        currentColor: [200, 255, 200]
+        currentColor: [200, 255, 200],
+        dragging: false,
     }
     setupCanvas(state);
 
