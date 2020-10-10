@@ -92,6 +92,14 @@ function setupCanvas(state) {
     document.getElementById("blue").addEventListener("click", (event) => {
         state.currentColor = [200, 200, 255]
     })
+    document.getElementById("undo").addEventListener("click", (event) => {
+        state.internal.undo();
+        draw(state);
+    })
+    document.getElementById("redo").addEventListener("click", (event) => {
+        state.internal.redo();
+        draw(state);
+    })
 }
 
 async function main() {

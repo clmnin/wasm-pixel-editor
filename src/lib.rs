@@ -1,7 +1,7 @@
 use im::Vector;
+use std::clone::Clone;
 use std::iter::FromIterator;
 use wasm_bindgen::prelude::*;
-use std::clone::Clone;
 
 // When the `wee_alloc` feature is enabled, this uses `wee_alloc` as the global
 // allocator.
@@ -11,7 +11,7 @@ use std::clone::Clone;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 struct Rgb {
     r: u8,
     g: u8,
@@ -58,20 +58,22 @@ impl Image {
         self.height
     }
 
-    pub fn brush(&self, x: usize, y: usize, color: Vec<u8>) -> Image {
+    pub fn brush(&self, x: usize, y: usize, color: Vec<u8>) -> Option<Image> {
         let index = y * self.width + x;
-        let new_cells = self.cells.update(
-            index,
-            Rgb {
-                r: color[0],
-                g: color[1],
-                b: color[2],
-            },
-        );
-        Image {
-            width: self.width,
-            height: self.height,
-            cells: new_cells,
+        let color = Rgb {
+            r: color[0],
+            g: color[1],
+            b: color[2],
+        };
+        if self.cells[index] == color {
+            None
+        } else {
+            let new_cells = self.cells.update(index, color);
+            Some(Image {
+                width: self.width,
+                height: self.height,
+                cells: new_cells,
+            })
         }
     }
 }
@@ -99,6 +101,18 @@ impl<T: Clone> UndoQueue<T> {
         self.queue.push(entry);
         self.index += 1;
     }
+
+    pub fn undo(&mut self) {
+        if self.index >= 1 {
+            self.index -= 1;
+        }
+    }
+
+    pub fn redo(&mut self) {
+        if self.index < (self.queue.len() - 1) {
+            self.index += 1;
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -119,9 +133,22 @@ impl InternalState {
         self.undo_queue.current()
     }
 
+    pub fn undo(&mut self) {
+        self.undo_queue.undo();
+    }
+
+    pub fn redo(&mut self) {
+        self.undo_queue.redo();
+    }
+
     pub fn brush(&mut self, x: usize, y: usize, color: Vec<u8>) {
         let image = self.undo_queue.current();
-        let new_image = image.brush(x, y, color);
-        self.undo_queue.push(new_image);
+        let optional_image = image.brush(x, y, color);
+        match optional_image {
+            None => (),
+            Some(new_image) => {
+                self.undo_queue.push(new_image);
+            }
+        }
     }
 }
