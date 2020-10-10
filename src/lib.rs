@@ -1,6 +1,7 @@
 use im::Vector;
-use wasm_bindgen::prelude::*;
 use std::iter::FromIterator;
+use wasm_bindgen::prelude::*;
+use std::clone::Clone;
 
 // When the `wee_alloc` feature is enabled, this uses `wee_alloc` as the global
 // allocator.
@@ -18,6 +19,7 @@ struct Rgb {
 }
 
 #[wasm_bindgen]
+#[derive(Clone)]
 pub struct Image {
     width: usize,
     height: usize,
@@ -56,12 +58,70 @@ impl Image {
         self.height
     }
 
-    pub fn brush(&mut self, x: usize, y: usize, color: Vec<u8>) {
+    pub fn brush(&self, x: usize, y: usize, color: Vec<u8>) -> Image {
         let index = y * self.width + x;
-        self.cells[index] = Rgb {
-            r: color[0],
-            g: color[1],
-            b: color[2],
-        };
+        let new_cells = self.cells.update(
+            index,
+            Rgb {
+                r: color[0],
+                g: color[1],
+                b: color[2],
+            },
+        );
+        Image {
+            width: self.width,
+            height: self.height,
+            cells: new_cells,
+        }
+    }
+}
+
+// T to work with anything
+struct UndoQueue<T: Clone> {
+    queue: Vec<T>,
+    index: usize,
+}
+
+impl<T: Clone> UndoQueue<T> {
+    pub fn new(entry: T) -> UndoQueue<T> {
+        UndoQueue {
+            queue: vec![entry],
+            index: 0,
+        }
+    }
+
+    pub fn current(&self) -> T {
+        self.queue[self.index].clone()
+    }
+
+    pub fn push(&mut self, entry: T) {
+        self.queue.truncate(self.index + 1);
+        self.queue.push(entry);
+        self.index += 1;
+    }
+}
+
+#[wasm_bindgen]
+struct InternalState {
+    undo_queue: UndoQueue<Image>,
+}
+
+#[wasm_bindgen]
+impl InternalState {
+    #[wasm_bindgen(constructor)]
+    pub fn new(width: usize, height: usize) -> InternalState {
+        InternalState {
+            undo_queue: UndoQueue::new(Image::new(width, height)),
+        }
+    }
+
+    pub fn image(&self) -> Image {
+        self.undo_queue.current()
+    }
+
+    pub fn brush(&mut self, x: usize, y: usize, color: Vec<u8>) {
+        let image = self.undo_queue.current();
+        let new_image = image.brush(x, y, color);
+        self.undo_queue.push(new_image);
     }
 }
